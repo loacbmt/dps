@@ -29,7 +29,6 @@ public class Ui extends JFrame {
 	private TrayIcon trayIcon;
 	
 	public Ui(Timer t) {
-		super();
 		try {
 			trayIcon = new TrayIcon(ImageIO.read(new File("trayicon.png")), "Distant Printing Service");
 			trayIcon.addMouseListener(new TrayEventProcessor(this));
@@ -90,14 +89,19 @@ public class Ui extends JFrame {
 			table.add(new JLabel(doc.isBinded() ? "Avec" : "Sans"), c);
 			c.gridx = 4;
 			table.add(new JLabel(decimalFormat.format(doc.computePrice())), c);
-			c.gridx = 5;
-			JButton download = new JButton("Télécharger");
-			download.addMouseListener(new DownloadProcessor(c.gridy - 1));
-			table.add(download, c);
-			c.gridx = 6;
-			JButton validate = new JButton("  Valider  ");
-			validate.addMouseListener(new ValidateProcessor(c.gridy - 1));
-			table.add(validate, c);
+			if (doc.isWaiting()) {
+				// TODO: interface for wainting list
+			}
+			else {
+				c.gridx = 5;
+				JButton download = new JButton("Télécharger");
+				download.addMouseListener(new DownloadProcessor(c.gridy - 1));
+				table.add(download, c);
+				c.gridx = 6;
+				JButton validate = new JButton(" Encaisser ");
+				validate.addMouseListener(new CashProcessor(c.gridy - 1));
+				table.add(validate, c);
+			}
 		}
 		
 		JScrollPane scrollPane = new JScrollPane(table);
@@ -134,12 +138,12 @@ class EventProcessor extends WindowAdapter {
 	
 	@Override
 	public void windowClosing(WindowEvent ev) {
-		if (Dps.isWorking()) {
-			JOptionPane.showMessageDialog(null, "Veuillez attendre la fin du traitement de la file d'attente.");
-		}
-		else {
+		if (Dps.Working().tryLock()) {
 			periodicCheck.cancel();
 			System.exit(0);
+		}
+		else {
+			JOptionPane.showMessageDialog(null, "Veuillez attendre la fin du traitement de la file d'attente.");
 		}
     }
 	
@@ -165,11 +169,11 @@ class TrayEventProcessor extends MouseAdapter {
 	}
 }
 
-class ValidateProcessor extends MouseAdapter {
+class CashProcessor extends MouseAdapter {
 	
 	private int docNum;
 	
-	public ValidateProcessor(int index) {
+	public CashProcessor(int index) {
 		super();
 		docNum = index;
 	}
@@ -177,7 +181,7 @@ class ValidateProcessor extends MouseAdapter {
 	@Override
 	public void mouseClicked(MouseEvent e) {
 		PrintedDoc doc = Dps.getDocs().get(docNum);
-		if (JOptionPane.showConfirmDialog(null, "Valider définitivement l'impression de " + doc.getLogin() + " ?", "Encaissement pour une impression", JOptionPane.YES_NO_OPTION) == 0) {
+		if (JOptionPane.showConfirmDialog(null, "Encaisser l'impression de " + doc.getLogin() + " ?", "Encaissement pour une impression", JOptionPane.YES_NO_OPTION) == 0) {
 			Ftp ftp = new Ftp();
 			if (ftp.connect()) {
 				ftp.deleteBackUpFile(doc.getFileName(), doc.getNumPages());

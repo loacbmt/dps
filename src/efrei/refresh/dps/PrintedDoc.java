@@ -2,46 +2,22 @@ package efrei.refresh.dps;
 
 public class PrintedDoc {
 	
-	private String login;
-	private boolean color;
 	private int nPages;
-	private boolean binding;
 	private String fileName;
-	
-	public static String getLogin(String fN) {
-		return fN.substring(0, fN.indexOf('@'));
-	}
-	
-	public static boolean isColored(String fN) {
-		return fN.charAt(fN.indexOf('@') + 1) != 'F';
-	}
-	
-	public static boolean isBinded(String fN) {
-		return fN.charAt(fN.indexOf('@') + 2) == 'T';
-	}
+	private boolean waiting;
 	
 	public PrintedDoc (int nP, String fN) {
-		login = getLogin(fN);
-		color = isColored(fN);
 		nPages = nP;
-		binding = isBinded(fN);
 		fileName = fN;
-	}
-	
-	public PrintedDoc (String l, boolean c, int nP, boolean b, String fN) {
-		login = l;
-		color = c;
-		nPages = nP;
-		binding = b;
-		fileName = fN;
+		setWaiting(false);
 	}
 	
 	public String getLogin() {
-		return login;
+		return fileName.substring(0, fileName.indexOf('@'));
 	}
 	
 	public boolean isColored() {
-		return color;
+		return fileName.charAt(fileName.indexOf('@') + 1) != 'F';
 	}
 	
 	public int getNumPages() {
@@ -49,7 +25,7 @@ public class PrintedDoc {
 	}
 	
 	public boolean isBinded() {
-		return binding;
+		return fileName.charAt(fileName.indexOf('@') + 2) == 'T';
 	}
 	
 	public String getFileName() {
@@ -57,6 +33,14 @@ public class PrintedDoc {
 	}
 	
 	public float computePrice() {
-		return (color ? Dps.getColorPrice() : Dps.getBwPrice()) * nPages + (binding ? Dps.getBindingPrice() : 0);
+		return (isColored() ? Dps.getColorPrice() : Dps.getBwPrice()) * nPages + (isBinded() ? Dps.getBindingPrice() : 0);
+	}
+
+	public boolean isWaiting() {
+		return waiting;
+	}
+
+	public void setWaiting(boolean w) {
+		waiting = w;
 	}
 }

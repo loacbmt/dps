@@ -27,6 +27,7 @@ public class Pdf {
 		fis.read(pdfContent, 0, fis.available());
 		ByteBuffer bb = ByteBuffer.wrap(pdfContent);
 		pdfFile = new PDFFile(bb);
+		fis.close();
 	}
 	
 	public int getNumPages() {

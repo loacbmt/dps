@@ -20,4 +20,14 @@ public class SortedDocsList extends LinkedList<PrintedDoc> {
 		it.add(item);
 		return true;
 	}
+	
+	public int totalPages(String login) {
+		int pages = 0;
+		ListIterator<PrintedDoc> it = listIterator();
+		while (it.hasNext()) {
+			PrintedDoc element = it.next();
+			if (login.equals(element.getLogin())) pages += element.getNumPages();
+		}
+		return pages;
+	}
 }

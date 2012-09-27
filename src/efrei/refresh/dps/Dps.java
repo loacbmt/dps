@@ -1,27 +1,49 @@
 package efrei.refresh.dps;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class Dps {
 
-	private static final float bwPrice = 0.05f;
-	private static final float colorPrice = 0.15f;
-	private static final float bindingPrice = 0.60f;
 	private static final long msBetweenChecks = 5*60*1000;
 	
-	private static boolean working = false;
+	private static float bwPrice;
+	private static float colorPrice;
+	private static float bindingPrice;
+	
+	private static Lock working = new ReentrantLock();
 	private static SortedDocsList docs = new SortedDocsList();
 	private static Ui ui;
 
 	public static void main(String[] args) {
 		Timer t = new Timer();
-		t.schedule(new QueueProcessor(), (msBetweenChecks) - (System.currentTimeMillis() % (msBetweenChecks)), msBetweenChecks);
+		QueueProcessor qp = new QueueProcessor();
+		
+		try {
+			BufferedReader prices = new BufferedReader(new FileReader("prices.txt"));
+			bwPrice = Float.parseFloat(prices.readLine());
+			colorPrice = Float.parseFloat(prices.readLine());
+			bindingPrice = Float.parseFloat(prices.readLine());
+			prices.close();
+		} catch (NumberFormatException | IOException e) {
+			System.out.println(e.getMessage());
+			System.exit(0);
+		}
+		// TODO: Get FTP password
+		Ftp.setPassword("XXX");
+		
 		ui = new Ui(t);
 		reload();
 		ui.update();
+		qp.run();
+		ui.update();
+		t.schedule(qp, (msBetweenChecks) - (System.currentTimeMillis() % (msBetweenChecks)), msBetweenChecks);
 	}
 	
 	public static float getBwPrice() {
@@ -36,12 +58,8 @@ public class Dps {
 		return bindingPrice;
 	}
 	
-	public static boolean isWorking() {
+	public static Lock Working() {
 		return working;
-	}
-	
-	public static void setWorking(boolean working) {
-		Dps.working = working;
 	}
 
 	public static SortedDocsList getDocs() {
@@ -55,9 +73,15 @@ public class Dps {
 	private static void reload() {
 		Ftp ftp = new Ftp();
 		if (ftp.connect()) {
-			String[] filesNames = ftp.getFilesNames(true);
+			String[] filesNames = ftp.getFilesNames(Ftp.FileDirectory.BACKUP);
 			for (String file : filesNames) {
 				Dps.getDocs().add(new PrintedDoc(Integer.parseInt(file.substring(0, file.indexOf('_'))), file.substring(file.indexOf('_') + 1)));
+			}
+			filesNames = ftp.getFilesNames(Ftp.FileDirectory.VALIDATION);
+			for (String file : filesNames) {
+				PrintedDoc pdoc = new PrintedDoc(Integer.parseInt(file.substring(0, file.indexOf('_'))), file.substring(file.indexOf('_') + 1));
+				pdoc.setWaiting(true);
+				Dps.getDocs().add(pdoc);
 			}
 			ftp.disconnect();
 		}
@@ -68,12 +92,12 @@ class QueueProcessor extends TimerTask {
 	
 	@Override
 	public void run () {
-		Dps.setWorking(true);
+		Dps.Working().lock();
 		
 		Ftp ftp = new Ftp();
 		if (ftp.connect()) {
 
-			String[] filesNames = ftp.getFilesNames(false);
+			String[] filesNames = ftp.getFilesNames(Ftp.FileDirectory.QUEUE);
 			for (String file : filesNames) {
 				if (ftp.getFile(file, false, 0)) {
 					try {
@@ -85,13 +109,20 @@ class QueueProcessor extends TimerTask {
 						}
 						
 						Pdf pdf = new Pdf(fileToPrint);
-						if (pdf.print(PrintedDoc.isColored(file))) {
-							ftp.removeFileFromQueue(file, pdf.getNumPages());
-							File f = new File(fileToPrint);
-							f.delete();
-							Dps.getDocs().add(new PrintedDoc(pdf.getNumPages(), file));
+						PrintedDoc pdoc = new PrintedDoc(pdf.getNumPages(), file);
+						if (pdoc.getNumPages() + Dps.getDocs().totalPages(pdoc.getLogin()) >= 30) {
+							pdoc.setWaiting(true);
+							ftp.addToWaintingList(file, pdoc.getNumPages());
+							Dps.getDocs().add(pdoc);
 							Dps.getUi().update();
 						}
+						else if (pdf.print(pdoc.isColored())) {
+							ftp.removeFileFromQueue(file, pdf.getNumPages());
+							Dps.getDocs().add(pdoc);
+							Dps.getUi().update();
+						}
+						File f = new File(fileToPrint);
+						f.delete();
 					} catch (IOException e) {
 						System.out.println(e.getMessage());
 					}
@@ -101,6 +132,6 @@ class QueueProcessor extends TimerTask {
 			ftp.disconnect();
 		}
 		
-		Dps.setWorking(false);
+		Dps.Working().unlock();
 	}
 }

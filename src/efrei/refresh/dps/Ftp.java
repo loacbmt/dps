@@ -15,11 +15,31 @@ import com.enterprisedt.net.ftp.FileTransferClient;
 
 public class Ftp {
 	
-	private static final String host = "XXX";
-	private static final String username = "XXX";
-	private static final String password = "XXX";
+	public enum FileDirectory {
+		QUEUE ("queue"),
+		BACKUP ("old"),
+		VALIDATION ("waiting");
+		
+		private String directory;
+
+		FileDirectory(String s) {
+			directory = s;
+		}
+		
+		public boolean needPages() {
+			return !this.equals(QUEUE);
+		}
+	}
+	
+	private static final String host = "admin.assos.efrei.fr";
+	private static final String username = "bde";
+	private static String password = "";
 	
 	private FileTransferClient ftp = null;
+	
+	public static void setPassword(String p) {
+		password = p;
+	}
 	
 	public Ftp () {
         ftp = new FileTransferClient();
@@ -52,9 +72,9 @@ public class Ftp {
 		}
 	}
 	
-	public String[] getFilesNames(boolean backedUp) {
+	public String[] getFilesNames(FileDirectory fd) {
 		try {
-			FTPFile[] files = ftp.directoryList(backedUp ? "old" : "queue");
+			FTPFile[] files = ftp.directoryList(fd.directory);
 			String[] filesNames = new String[files.length];
 			for (int i = 0; i < files.length; i++) {
 				filesNames[i] = files[i].getName();
@@ -79,6 +99,14 @@ public class Ftp {
 	public void removeFileFromQueue(String FileName, int numPages) {
 		try {
 			ftp.rename("queue/" + FileName, "old/" + numPages + "_" + FileName);
+		} catch (FTPException | IOException e) {
+			System.out.println(e.getMessage());
+		}
+	}
+	
+	public void addToWaintingList(String FileName, int numPages) {
+		try {
+			ftp.rename("queue/" + FileName, "waiting/" + numPages + "_" + FileName);
 		} catch (FTPException | IOException e) {
 			System.out.println(e.getMessage());
 		}
