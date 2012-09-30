@@ -25,18 +25,9 @@ public class Dps {
 		Timer t = new Timer();
 		QueueProcessor qp = new QueueProcessor();
 		
-		try {
-			BufferedReader prices = new BufferedReader(new FileReader("prices.txt"));
-			bwPrice = Float.parseFloat(prices.readLine());
-			colorPrice = Float.parseFloat(prices.readLine());
-			bindingPrice = Float.parseFloat(prices.readLine());
-			prices.close();
-		} catch (NumberFormatException | IOException e) {
-			System.out.println(e.getMessage());
-			System.exit(0);
-		}
-		// TODO: Get FTP password
-		Ftp.setPassword("XXX");
+		loadPrices();
+		Pdf.initPrinters();
+		Ui.askPassword();
 		
 		ui = new Ui(t);
 		reload();
@@ -70,6 +61,19 @@ public class Dps {
 		return ui;
 	}
 	
+	private static void loadPrices() {
+		try {
+			BufferedReader prices = new BufferedReader(new FileReader("res/prices.txt"));
+			bwPrice = Float.parseFloat(prices.readLine());
+			colorPrice = Float.parseFloat(prices.readLine());
+			bindingPrice = Float.parseFloat(prices.readLine());
+			prices.close();
+		} catch (NumberFormatException | IOException e) {
+			System.out.println(e.getMessage());
+			System.exit(0);
+		}
+	}
+	
 	private static void reload() {
 		Ftp ftp = new Ftp();
 		if (ftp.connect()) {
@@ -99,11 +103,17 @@ class QueueProcessor extends TimerTask {
 
 			String[] filesNames = ftp.getFilesNames(Ftp.FileDirectory.QUEUE);
 			for (String file : filesNames) {
-				if (ftp.getFile(file, false, 0)) {
+				if (ftp.getFile(file, Ftp.FileDirectory.QUEUE, 0)) {
 					try {
-						String fileToPrint = file;
+						String fileToPrint = new String(file);
 						if (!file.toLowerCase().endsWith(".pdf")) {
-							// TODO: conversion from doc/docx to pdf
+							Process proc = Runtime.getRuntime().exec("\"C:\\Program Files (x86)\\Microsoft Office\\Office14\\winword.exe\" \"" + file + "\" /q /n /mdps_pdf");
+							try {
+								proc.waitFor();
+							} catch (InterruptedException e) {
+								System.out.println(e.getMessage());
+							}
+							fileToPrint += ".pdf";
 							File f = new File(file);
 							f.delete();
 						}
@@ -112,17 +122,17 @@ class QueueProcessor extends TimerTask {
 						PrintedDoc pdoc = new PrintedDoc(pdf.getNumPages(), file);
 						if (pdoc.getNumPages() + Dps.getDocs().totalPages(pdoc.getLogin()) >= 30) {
 							pdoc.setWaiting(true);
-							ftp.addToWaintingList(file, pdoc.getNumPages());
+							ftp.moveFile(file, pdoc.getNumPages(), Ftp.FileDirectory.QUEUE, Ftp.FileDirectory.VALIDATION);
 							Dps.getDocs().add(pdoc);
 							Dps.getUi().update();
 						}
 						else if (pdf.print(pdoc.isColored())) {
-							ftp.removeFileFromQueue(file, pdf.getNumPages());
+							ftp.moveFile(file, pdoc.getNumPages(), Ftp.FileDirectory.QUEUE, Ftp.FileDirectory.BACKUP);
 							Dps.getDocs().add(pdoc);
 							Dps.getUi().update();
+							File f = new File(fileToPrint);
+							f.delete();
 						}
-						File f = new File(fileToPrint);
-						f.delete();
 					} catch (IOException e) {
 						System.out.println(e.getMessage());
 					}

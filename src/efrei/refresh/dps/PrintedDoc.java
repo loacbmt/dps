@@ -9,7 +9,7 @@ public class PrintedDoc {
 	public PrintedDoc (int nP, String fN) {
 		nPages = nP;
 		fileName = fN;
-		setWaiting(false);
+		waiting = false;
 	}
 	
 	public String getLogin() {

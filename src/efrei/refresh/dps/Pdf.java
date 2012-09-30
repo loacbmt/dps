@@ -9,9 +9,14 @@ import java.awt.print.Paper;
 import java.awt.print.Printable;
 import java.awt.print.PrinterException;
 import java.awt.print.PrinterJob;
+import java.io.BufferedReader;
 import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+
+import javax.print.PrintService;
+import javax.print.PrintServiceLookup;
 
 import com.sun.pdfview.PDFFile;
 import com.sun.pdfview.PDFPage;
@@ -19,7 +24,33 @@ import com.sun.pdfview.PDFRenderer;
 
 public class Pdf {
 	
+	private static PrintService bwPrinter = null;
+	private static PrintService colorPrinter = null;
+	
 	private PDFFile pdfFile = null;
+	String name = "";
+	
+	public static void initPrinters() {
+		try {
+			BufferedReader printers = new BufferedReader(new FileReader("res/printers.txt"));
+			initPrinter(printers.readLine(), false);
+			initPrinter(printers.readLine(), true);
+			printers.close();
+		} catch (NumberFormatException | IOException e) {
+			System.out.println(e.getMessage());
+			System.exit(0);
+		}
+	}
+	
+	private static void initPrinter(String name, boolean color) {
+		PrintService printers[] = PrintServiceLookup.lookupPrintServices(null, null);
+		for (PrintService ps : printers) {
+			if (name.equals(ps.getName())) {
+				if (color) colorPrinter = ps;
+				else bwPrinter = ps;
+			}
+		}
+	}
 	
 	public Pdf(String fileName) throws IOException {
 		FileInputStream fis = new FileInputStream(fileName);
@@ -28,6 +59,7 @@ public class Pdf {
 		ByteBuffer bb = ByteBuffer.wrap(pdfContent);
 		pdfFile = new PDFFile(bb);
 		fis.close();
+		name = fileName;
 	}
 	
 	public int getNumPages() {
@@ -35,9 +67,14 @@ public class Pdf {
 	}
 
 	public boolean print(boolean color) {
-		// TODO: Find a way to actually print with the black cartridge. Until then, 'color' is useless.
 		PrinterJob pjob = PrinterJob.getPrinterJob();
-		pjob.setJobName("DPS Job");
+		try {
+			pjob.setPrintService(color ? colorPrinter : bwPrinter);
+		} catch (PrinterException e) {
+			System.out.println(e.getMessage());
+			return false;
+		}
+		pjob.setJobName(name);
 		
 		PageFormat pf = pjob.defaultPage();
 		Paper paper = new Paper();

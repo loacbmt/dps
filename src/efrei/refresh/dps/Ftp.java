@@ -86,9 +86,9 @@ public class Ftp {
 		}
 	}
 	
-	public boolean getFile(String FileName, boolean backedUp, int numPages) {
+	public boolean getFile(String FileName, FileDirectory fd, int numPages) {
 		try {
-			ftp.downloadFile(FileName, (backedUp ? "old/" + numPages + "_" : "queue/") + FileName);
+			ftp.downloadFile(FileName, fd.directory + '/' + (fd.needPages() ? numPages + "_"  : "") + FileName);
 			return true;
 		} catch (FTPException | IOException e) {
 			System.out.println(e.getMessage());
@@ -96,17 +96,9 @@ public class Ftp {
 		}
 	}
 	
-	public void removeFileFromQueue(String FileName, int numPages) {
+	public void moveFile(String FileName, int numPages, FileDirectory from, FileDirectory to) {
 		try {
-			ftp.rename("queue/" + FileName, "old/" + numPages + "_" + FileName);
-		} catch (FTPException | IOException e) {
-			System.out.println(e.getMessage());
-		}
-	}
-	
-	public void addToWaintingList(String FileName, int numPages) {
-		try {
-			ftp.rename("queue/" + FileName, "waiting/" + numPages + "_" + FileName);
+			ftp.rename(from.directory + '/' + (from.needPages() ? numPages + "_"  : "") + FileName, to.directory + '/' + (to.needPages() ? numPages + "_"  : "") + FileName);
 		} catch (FTPException | IOException e) {
 			System.out.println(e.getMessage());
 		}
