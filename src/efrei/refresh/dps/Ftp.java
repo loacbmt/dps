@@ -14,23 +14,6 @@ import com.enterprisedt.net.ftp.FileTransferClient;
  **/
 
 public class Ftp {
-	
-	public enum FileDirectory {
-		QUEUE ("queue"),
-		BACKUP ("old"),
-		VALIDATION ("waiting");
-		
-		private String directory;
-
-		FileDirectory(String s) {
-			directory = s;
-		}
-		
-		public boolean needPages() {
-			return !this.equals(QUEUE);
-		}
-	}
-	
 	private static final String host = "admin.assos.efrei.fr";
 	private static final String username = "bde";
 	private static String password = "";
@@ -72,9 +55,9 @@ public class Ftp {
 		}
 	}
 	
-	public String[] getFilesNames(FileDirectory fd) {
+	public String[] getFilesNames(boolean backup) {
 		try {
-			FTPFile[] files = ftp.directoryList(fd.directory);
+			FTPFile[] files = ftp.directoryList(backup ? "old" : "queue");
 			String[] filesNames = new String[files.length];
 			for (int i = 0; i < files.length; i++) {
 				filesNames[i] = files[i].getName();
@@ -86,9 +69,9 @@ public class Ftp {
 		}
 	}
 	
-	public boolean getFile(String FileName, FileDirectory fd, int numPages) {
+	public boolean getFile(String FileName, boolean backup) {
 		try {
-			ftp.downloadFile(FileName, fd.directory + '/' + (fd.needPages() ? numPages + "_"  : "") + FileName);
+			ftp.downloadFile(FileName, (backup ? "old/" : "queue/") + FileName);
 			return true;
 		} catch (FTPException | IOException e) {
 			System.out.println(e.getMessage());
@@ -96,17 +79,17 @@ public class Ftp {
 		}
 	}
 	
-	public void moveFile(String FileName, int numPages, FileDirectory from, FileDirectory to) {
+	public void moveToBackup(String FileName) {
 		try {
-			ftp.rename(from.directory + '/' + (from.needPages() ? numPages + "_"  : "") + FileName, to.directory + '/' + (to.needPages() ? numPages + "_"  : "") + FileName);
+			ftp.rename("queue/" + FileName, "old/" + FileName);
 		} catch (FTPException | IOException e) {
 			System.out.println(e.getMessage());
 		}
 	}
 	
-	public void deleteBackUpFile(String FileName, int numPages) {
+	public void deleteBackUpFile(String FileName) {
 		try {
-			ftp.deleteFile("old/" + numPages + "_" + FileName);
+			ftp.deleteFile("old/" + FileName);
 		} catch (FTPException | IOException e) {
 			System.out.println(e.getMessage());
 		}

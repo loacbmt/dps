@@ -1,0 +1,4 @@
+ColorPrinter	= "printer (Color)"
+BwPrinter	= "printer (B&W)"
+PdfPrinter	= "foxit.exe" /t 
+DocxPrinter	= "word.exe" 

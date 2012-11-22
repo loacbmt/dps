@@ -1,10 +1,7 @@
 package efrei.refresh.dps;
 
 import java.awt.AWTException;
-import java.awt.Desktop;
 import java.awt.Frame;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.SystemTray;
 import java.awt.TrayIcon;
@@ -61,7 +58,7 @@ public class Ui extends JFrame {
 		waitValidation.unlock();
 	}
 	
-	public Ui(Timer t) {
+	public Ui() {
 		try {
 			trayIcon = new TrayIcon(ImageIO.read(new File("res/trayicon.png")), "Distant Printing Service");
 			trayIcon.addMouseListener(new TrayEventListener(this));
@@ -78,88 +75,40 @@ public class Ui extends JFrame {
 		} catch (IOException e) {
 			System.out.println(e.getMessage());
 		}
-		addWindowListener(new EventListener(this, t));
-		
+	}
+	
+	public void run(Timer t)
+	{
 		update();
+		addWindowListener(new EventListener(this, t));
 		setVisible(true);
 	}
 	
 	public void update() {
-		// Known issue: the last column is not displayed the way it is expected
-		// http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4126689
 		DecimalFormat decimalFormat = (DecimalFormat)DecimalFormat.getInstance();
         decimalFormat.applyPattern("#0.00");
         
-        JPanel table = new JPanel(new GridBagLayout());
-		GridBagConstraints c = new GridBagConstraints();
-		c.fill = GridBagConstraints.HORIZONTAL;
-		c.weightx = 1;
-		c.weighty = 0;
-		
-		c.gridy = 0;
-		c.gridx = 0;
-		c.gridwidth = 6;
-		table.add(new JLabel("Login"), c);
-		c.gridx += c.gridwidth;
-		table.add(new JLabel("Impression"), c);
-		c.gridx += c.gridwidth;
-		table.add(new JLabel("Pages"), c);
-		c.gridx += c.gridwidth;
-		table.add(new JLabel("Reliure"), c);
-		c.gridx += c.gridwidth;
-		table.add(new JLabel("Prix (€)"), c);
-		c.gridx += c.gridwidth;
-		c.gridwidth = GridBagConstraints.REMAINDER;
-		table.add(new JLabel("Actions"), c);
+        JPanel table = new JPanel(new GridLayout(Dps.getDocs().size() + 1, 6));
+		table.add(new JLabel("Login"));
+		table.add(new JLabel("Impression"));
+		table.add(new JLabel("Reliure"));
+		table.add(new JLabel("Pages"));
+		table.add(new JLabel("Actions"));
+		table.add(new JLabel(""));
 		
 		for (PrintedDoc doc : Dps.getDocs()) {
-			++c.gridy;
-			c.gridx = 0;
-			c.gridwidth = 6;
-			table.add(new JLabel(doc.getLogin()), c);
-			c.gridx += c.gridwidth;
-			table.add(new JLabel(doc.isColored() ? "Couleurs" : "N&B"), c);
-			c.gridx += c.gridwidth;
-			table.add(new JLabel(Integer.toString(doc.getNumPages())), c);
-			c.gridx += c.gridwidth;
-			table.add(new JLabel(doc.isBinded() ? "Avec" : "Sans"), c);
-			c.gridx += c.gridwidth;
-			table.add(new JLabel(decimalFormat.format(doc.computePrice())), c);
-			if (doc.isWaiting()) {
-				c.gridx += c.gridwidth;
-				c.gridwidth = 2;
-				JButton show = new JButton("Vérifier ");
-				show.addMouseListener(new ShowListener(c.gridy - 1));
-				table.add(show, c);
-				c.gridx += c.gridwidth;
-				JButton cancel = new JButton("Supprimer");
-				cancel.addMouseListener(new CancelListener(c.gridy - 1));
-				table.add(cancel, c);
-				c.gridx += c.gridwidth;
-				JButton validate = new JButton("Imprimer ");
-				validate.addMouseListener(new ValidateListener(c.gridy - 1));
-				table.add(validate, c);
-			}
-			else {
-				c.gridx += c.gridwidth;
-				c.gridwidth = 3;
-				JButton download = new JButton("Télécharger");
-				download.addMouseListener(new DownloadListener(c.gridy - 1));
-				table.add(download, c);
-				c.gridx += c.gridwidth;
-				JButton cash = new JButton(" Encaisser ");
-				cash.addMouseListener(new CashListener(c.gridy - 1));
-				table.add(cash, c);
-			}
+			table.add(new JLabel(doc.getLogin()));
+			table.add(new JLabel(doc.isColored() ? "Couleurs" : "N&B"));
+			table.add(new JLabel(doc.isBinded() ? "Avec" : "Sans"));
+			table.add(new JLabel(Integer.toString(doc.getNumPages())));
+			
+			JButton download = new JButton("Télécharger");
+			download.addMouseListener(new DownloadListener(doc));
+			table.add(download);
+			JButton validate = new JButton("  Valider  ");
+			validate.addMouseListener(new ValidateListener(doc));
+			table.add(validate);
 		}
-		
-		c.fill = GridBagConstraints.BOTH;
-		c.weightx = 1;
-		c.weighty = 1;
-		c.gridx = 0;
-		++c.gridy;
-		c.gridwidth = 36;
-		table.add(new JLabel(""), c);
 		
 		JScrollPane scrollPane = new JScrollPane(table);
 		getContentPane().removeAll();
@@ -253,122 +202,41 @@ class TrayEventListener extends MouseAdapter {
 	}
 }
 
-class ShowListener extends MouseAdapter {
-	
-	private int docNum;
-	
-	public ShowListener(int index) {
-		docNum = index;
-	}
-	
-	@Override
-	public void mouseClicked(MouseEvent e) {
-		PrintedDoc doc = Dps.getDocs().get(docNum);
-		try {
-			Desktop.getDesktop().open(new File(doc.getFileName() + (doc.getFileName().toLowerCase().endsWith(".pdf") ? "" : ".pdf")));
-		} catch (IOException ioe) {
-			System.out.println(ioe.getMessage());
-		}
-	}
-}
-
-class CancelListener extends MouseAdapter {
-	
-	private int docNum;
-	
-	public CancelListener(int index) {
-		docNum = index;
-	}
-	
-	@Override
-	public void mouseClicked(MouseEvent e) {
-		PrintedDoc doc = Dps.getDocs().get(docNum);
-		if (JOptionPane.showConfirmDialog(null, "Annuler l'impression de " + doc.getLogin() + " ?", "Annuler une impression", JOptionPane.YES_NO_OPTION) == 0) {
-			Ftp ftp = new Ftp();
-			if (ftp.connect()) {
-				ftp.moveFile(doc.getFileName(), doc.getNumPages(), Ftp.FileDirectory.VALIDATION, Ftp.FileDirectory.BACKUP);
-				ftp.deleteBackUpFile(doc.getFileName(), doc.getNumPages());
-				Dps.getDocs().remove(docNum);
-				Dps.getUi().update();
-				File f = new File(doc.getFileName() + (doc.getFileName().toLowerCase().endsWith(".pdf") ? "" : ".pdf"));
-				f.delete();
-				ftp.disconnect();
-			}
-		}
-	}
-}
-
-class ValidateListener extends MouseAdapter {
-	
-	private int docNum;
-	
-	public ValidateListener(int index) {
-		docNum = index;
-	}
-	
-	@Override
-	public void mouseClicked(MouseEvent e) {
-		PrintedDoc doc = Dps.getDocs().get(docNum);
-		if (JOptionPane.showConfirmDialog(null, "Autoriser l'impression de " + doc.getLogin() + " ?", "Autoriser une impression", JOptionPane.YES_NO_OPTION) == 0) {
-			Ftp ftp = new Ftp();
-			if (ftp.connect()) {
-				String fileToPrint = doc.getFileName() + (doc.getFileName().toLowerCase().endsWith(".pdf") ? "" : ".pdf");
-				try {
-					Pdf pdf = new Pdf(fileToPrint);
-					if (pdf.print(doc.isColored())) {
-						ftp.moveFile(doc.getFileName(), doc.getNumPages(), Ftp.FileDirectory.VALIDATION, Ftp.FileDirectory.BACKUP);
-						doc.setWaiting(false);
-						Dps.getUi().update();
-						File f = new File(fileToPrint);
-						f.delete();
-					}
-				} catch (IOException ioe) {
-					System.out.println(ioe.getMessage());
-				}
-				ftp.disconnect();
-			}
-		}
-	}
-}
-
 class DownloadListener extends MouseAdapter {
 	
-	private int docNum;
+	private PrintedDoc pdoc;
 	
-	public DownloadListener(int index) {
-		docNum = index;
+	public DownloadListener(PrintedDoc doc) {
+		pdoc = doc;
 	}
 	
 	@Override
 	public void mouseClicked(MouseEvent e) {
 		Ftp ftp = new Ftp();
 		if (ftp.connect()) {
-			PrintedDoc doc = Dps.getDocs().get(docNum);
-			if (ftp.getFile(doc.getFileName(), doc.isWaiting() ? Ftp.FileDirectory.VALIDATION : Ftp.FileDirectory.BACKUP, doc.getNumPages())) {
-				JOptionPane.showMessageDialog(null, "Téléchargement de " + doc.getFileName() + " terminé.");
-			}
+			if (ftp.getFile(pdoc.getFileName(), true)) JOptionPane.showMessageDialog(null, "Téléchargement de " + pdoc.getFileName() + " terminé.");
+			else JOptionPane.showMessageDialog(null, "Une erreur est survenue lors du téléchargement !");
 			ftp.disconnect();
 		}
 	}
 }
 
-class CashListener extends MouseAdapter {
+class ValidateListener extends MouseAdapter {
 	
-	private int docNum;
+	private PrintedDoc pdoc;
 	
-	public CashListener(int index) {
-		docNum = index;
+	public ValidateListener(PrintedDoc doc) {
+		pdoc = doc;
 	}
 	
 	@Override
 	public void mouseClicked(MouseEvent e) {
-		PrintedDoc doc = Dps.getDocs().get(docNum);
-		if (JOptionPane.showConfirmDialog(null, "Encaisser l'impression de " + doc.getLogin() + " ?", "Encaissement pour une impression", JOptionPane.YES_NO_OPTION) == 0) {
+		if (JOptionPane.showConfirmDialog(null, "Valider l'impression de " + pdoc.getLogin() + " ?", "Validation d'une impression", JOptionPane.YES_NO_OPTION) == 0) {
 			Ftp ftp = new Ftp();
 			if (ftp.connect()) {
-				ftp.deleteBackUpFile(doc.getFileName(), doc.getNumPages());
+				ftp.deleteBackUpFile(pdoc.getFileName());
 				ftp.disconnect();
-				Dps.getDocs().remove(docNum);
+				Dps.getDocs().remove(pdoc);
 				Dps.getUi().update();
 			}
 		}
