@@ -11,7 +11,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class Dps {
 
-	private static final long msBetweenChecks = 10*60*1000;
+	//private static final long msBetweenChecks = 10*60*1000;
+	private static final long msBetweenChecks = 30*1000;
 	
 	private static Lock working = new ReentrantLock();
 	private static SortedDocsList docs = new SortedDocsList();
@@ -113,15 +114,15 @@ class QueueProcessor extends TimerTask {
 		
 		Ftp ftp = new Ftp();
 		if (ftp.connect()) {
-			String[] filesNames = ftp.getFilesNames(true);
+			String[] filesNames = ftp.getFilesNames(false);
 			for (String file : filesNames) {
-				if (ftp.getFile(file, true)) {
+				if (ftp.getFile(file, false)) {
 					boolean printed = false;
 					PrintedDoc pdoc = new PrintedDoc(file);
 					String printLine = "";
 					if (pdoc.getExtension().equals(".pdf")) printLine = PdfPrinter + file + ' ' + (pdoc.isColored() ? ColorPrinter : BwPrinter);
-					else if (pdoc.getExtension().equals(".docx")) printLine = DocxPrinter + (pdoc.isColored() ? "/mDPS_colorPrint" : "/mDPS_bwPrint") + file;
-					
+					else if (pdoc.getExtension().equals(".docx")) printLine = DocxPrinter + (pdoc.isColored() ? "/q /mDPS_colorPrint " : "/q /mDPS_bwPrint ") + file;
+
 					try {
 						Process proc = Runtime.getRuntime().exec(printLine);
 						proc.waitFor();
@@ -146,18 +147,3 @@ class QueueProcessor extends TimerTask {
 	}
 }
 
-/*
-Sub dps_print()
-'
-' Silent print macro
-'
-'
-Application.Visible = False
-printer = Application.ActivePrinter
-Application.ActivePrinter = "HP psc 2100 Series"
-ActiveDocument.PrintOut
-Application.ActivePrinter = printer
-Application.Quit
-
-End Sub
-*/

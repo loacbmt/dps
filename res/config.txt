@@ -1,4 +1,4 @@
-ColorPrinter	= "printer (Color)"
-BwPrinter	= "printer (B&W)"
-PdfPrinter	= "foxit.exe" /t 
-DocxPrinter	= "word.exe" 
+ColorPrinter	= "Canon iR C3580i (Color)"
+BwPrinter	= "Canon iR C3580i (B&W)"
+PdfPrinter	= "C:\Program Files (x86)\Foxit Software\Foxit Reader\Foxit Reader.exe" /t 
+DocxPrinter	= "C:\Program Files\Microsoft Office\Office14\WINWORD.EXE" 
