@@ -11,12 +11,24 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.text.DecimalFormat;
 import java.util.Timer;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.PBEParameterSpec;
 import javax.imageio.ImageIO;
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -25,6 +37,9 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
+
+import com.sun.org.apache.xml.internal.security.exceptions.Base64DecodingException;
+import com.sun.org.apache.xml.internal.security.utils.Base64;
 
 public class Ui extends JFrame {
 	
@@ -133,6 +148,7 @@ public class Ui extends JFrame {
 
 class passwordListener extends MouseAdapter {
 	
+	private static final String cipheredFTPPassword = new String("EotaVJ2Y9KaMoOJra3ZkJQ==");
 	private JFrame window;
 	private JPasswordField password;
 	private Lock waitValidation;
@@ -147,7 +163,19 @@ class passwordListener extends MouseAdapter {
 	
 	@Override
 	public void mouseClicked(MouseEvent e) {
-		Ftp.setPassword(new String (password.getPassword()));
+		String ftpPassword = "";
+		try {
+			PBEKeySpec keySpec = new PBEKeySpec(password.getPassword().clone(), new byte[8], 1);
+			PBEParameterSpec paramSpec = new PBEParameterSpec(keySpec.getSalt(), keySpec.getIterationCount());
+			SecretKeyFactory keyFactory = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
+			SecretKey key = keyFactory.generateSecret(keySpec);
+			Cipher cipher = Cipher.getInstance(key.getAlgorithm());
+			cipher.init(Cipher.DECRYPT_MODE, key, paramSpec);
+			ftpPassword = new String(cipher.doFinal(Base64.decode(cipheredFTPPassword.getBytes())));
+		} catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeySpecException | InvalidKeyException | IllegalBlockSizeException | BadPaddingException | InvalidAlgorithmParameterException | Base64DecodingException e1) {
+			System.out.println(e1.getMessage());
+		}
+		Ftp.setPassword(ftpPassword);
 		Ftp ftp = new Ftp();
 		if (ftp.connect()) {
 			window.dispose();

@@ -11,8 +11,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class Dps {
 
-	//private static final long msBetweenChecks = 10*60*1000;
-	private static final long msBetweenChecks = 30*1000;
+	private static final long msBetweenChecks = 5*60*1000;
 	
 	private static Lock working = new ReentrantLock();
 	private static SortedDocsList docs = new SortedDocsList();
