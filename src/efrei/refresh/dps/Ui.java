@@ -59,7 +59,7 @@ public class Ui extends JFrame {
 		window.setLocationRelativeTo(null);
 		window.setDefaultCloseOperation(EXIT_ON_CLOSE);
 		window.getContentPane().setLayout(new GridLayout(3, 1));
-		window.getContentPane().add(new JLabel("Mot de passe FTP :"));
+		window.getContentPane().add(new JLabel("Mot de passe BDE :"));
 		window.getContentPane().add(password);
 		window.getContentPane().add(validate);
 		window.setVisible(true);
